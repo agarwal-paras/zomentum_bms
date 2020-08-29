@@ -17,3 +17,9 @@ class TicketUpdateRequestSerializer(serializers.Serializer):
     """
     ticket_id = serializers.IntegerField(required=True, allow_null=False)
     timing = serializers.DateTimeField(required=True, allow_null=False)
+
+class TicketDeleteRequestSerializer(serializers.Serializer):
+    """
+    Serializer for the Ticket Delete API
+    """
+    ticket_id = serializers.IntegerField(required=True, allow_null=False)

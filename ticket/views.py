@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from ticket.serializers import TicketCreateRequestSerializer
 from ticket.serializers import TicketUpdateRequestSerializer
+from ticket.serializers import TicketDeleteRequestSerializer
 from ticket.models import Ticket
 
 class TicketCreateAPIView(ViewSet):
@@ -38,11 +39,14 @@ class TicketCreateAPIView(ViewSet):
             user_contact = data.get('user_contact')
 
             for timing in data.get('timings'):
-                ticket = Ticket(
-                    ticket_time=timing,
-                    user_name=user_name,
-                    user_contact=user_contact)
-                ticket.save()
+                if(Ticket.objects.filter(ticket_time=timing).count() < 20):
+                    ticket = Ticket(
+                        ticket_time=timing,
+                        user_name=user_name,
+                        user_contact=user_contact)
+                    ticket.save()
+                else:
+                    raise ValidationError("There are already 20 tickets for timing " + timing)
 
             response.update(success=True)
             response.update(message="Tickets created successfully")
@@ -87,6 +91,46 @@ class TicketUpdateAPIView(ViewSet):
 
             response.update(success=True)
             response.update(message="Ticket updated successfully")
+        except ValidationError as e:
+            response.update(error_message=e.detail)
+        except Ticket.DoesNotExist as e:
+            response.update(error_message="Ticket does not exist.")
+        else:
+            status_code = status.HTTP_200_OK
+        return Response(response, status=status_code)
+
+
+class TicketDeleteAPIView(ViewSet):
+    """
+    Ticket delete API to delete a ticket.
+    """
+
+    def ticket_delete(self, request):
+        """
+        Ticket Timing Delete API
+        Args:
+            ticket_id: Ticket Id to delete.
+        """
+        response = {
+            'success': False,
+            'message': '',
+            'error_messages': '',
+            'data': []
+        }
+
+        status_code = status.HTTP_400_BAD_REQUEST
+
+        try:
+            validation_serializer = TicketDeleteRequestSerializer(data=request.data)
+            validation_serializer.is_valid(raise_exception=True)
+            data = validation_serializer.data
+            ticket_id = data.get('ticket_id')
+
+            ticket = Ticket.objects.get(ticket_id=ticket_id)
+            ticket.delete()
+
+            response.update(success=True)
+            response.update(message="Ticket deleted successfully")
         except ValidationError as e:
             response.update(error_message=e.detail)
         except Ticket.DoesNotExist as e:
