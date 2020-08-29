@@ -4,14 +4,16 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
+from ticket.serializers import GetTicketResponseSerializer
 from ticket.serializers import TicketCreateRequestSerializer
-from ticket.serializers import TicketUpdateRequestSerializer
 from ticket.serializers import TicketDeleteRequestSerializer
+from ticket.serializers import TicketUpdateRequestSerializer
+from ticket.serializers import TicketViewRequestSerializer
 from ticket.models import Ticket
 
 class TicketCreateAPIView(ViewSet):
     """
-    Ticket Create API to craete tickets for a user for different timings.
+    Ticket Create API to create tickets for a user for different timings.
     """
 
     def ticket_create(self, request):
@@ -26,7 +28,7 @@ class TicketCreateAPIView(ViewSet):
         response = {
             'success': False,
             'message': '',
-            'error_messagers': '',
+            'error_messages': '',
             'data': []
         }
 
@@ -57,6 +59,70 @@ class TicketCreateAPIView(ViewSet):
             status_code = status.HTTP_200_OK
         return Response(response, status=status_code)
 
+
+class GetTicketAPIView(ViewSet):
+    """
+    Get Ticket API to Get the information of a user for who booked the ticket of a particular ticket id.
+    """
+
+    def get_ticket(self, request, ticket_id):
+        """
+        Get Ticket API
+        Args:
+            ticket_id: Ticket ID 
+        """
+
+        response = {
+            'success': False,
+            'message': '',
+            'error_messages': '',
+            'data': []
+        }
+
+        status_code = status.HTTP_400_BAD_REQUEST
+
+        try:
+            ticket = Ticket.objects.get(ticket_id=ticket_id)            
+            response_serializer = GetTicketResponseSerializer(ticket)
+            response.update(data=response_serializer.data)
+        except Ticket.DoesNotExist as e:
+            response.update(error_message='Ticket Does Not Exist')
+        except ValidationError as e:
+            response.update(error_message=e.detail)
+        else:
+            status_code = status.HTTP_200_OK
+        return Response(response, status=status_code)
+    
+    def view_ticket(self, request):
+        """    
+        Get Ticket API
+        Args:
+            ticket_time: Ticket time of booking 
+        
+        """
+        response = {
+            'success': False,
+            'message': '',
+            'error_messages': '',
+            'data': []
+        }
+
+        status_code = status.HTTP_400_BAD_REQUEST
+
+        try:
+            validation_serializer = TicketViewRequestSerializer(data=request.query_params)
+            validation_serializer.is_valid(raise_exception=True)
+            
+            data = validation_serializer.data
+            ticket_time = data.get('ticket_time')
+            tickets = Ticket.objects.filter(ticket_time=ticket_time)            
+            ticket_serializer = GetTicketResponseSerializer(tickets, many=True)
+            response.update(data=ticket_serializer.data)
+        except ValidationError as e:
+            response.update(error_message=e.detail)
+        else:
+            status_code = status.HTTP_200_OK
+        return Response(response, status=status_code)
 
 class TicketUpdateAPIView(ViewSet):
     """
