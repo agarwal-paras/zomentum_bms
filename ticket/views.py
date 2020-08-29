@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -131,6 +132,53 @@ class TicketDeleteAPIView(ViewSet):
 
             response.update(success=True)
             response.update(message="Ticket deleted successfully")
+        except ValidationError as e:
+            response.update(error_message=e.detail)
+        except Ticket.DoesNotExist as e:
+            response.update(error_message="Ticket does not exist.")
+        else:
+            status_code = status.HTTP_200_OK
+        return Response(response, status=status_code)
+
+
+class TicketExpireAPIView(ViewSet):
+    """
+    Ticket expire API to expire a ticket if later than 8 hours.
+    """
+
+    def ticket_expire(self, request):
+        """
+        Ticket Timing Expire API
+        Args:
+            ticket_id: Ticket Id to expire.
+        """
+        response = {
+            'success': False,
+            'message': '',
+            'error_messages': '',
+            'data': []
+        }
+
+        status_code = status.HTTP_400_BAD_REQUEST
+
+        try:
+            validation_serializer = TicketDeleteRequestSerializer(data=request.data)
+            validation_serializer.is_valid(raise_exception=True)
+            data = validation_serializer.data
+            ticket_id = data.get('ticket_id')
+
+            ticket = Ticket.objects.get(ticket_id=ticket_id)
+            current_time = datetime.now(timezone.utc)
+            difference = current_time - ticket.ticket_time
+
+            if difference.seconds >= 0 * 60 * 60:
+                ticket.ticket_status = 'Invalid'
+                ticket.save()
+            else:
+                raise ValidationError("Ticket cannot be expired")
+
+            response.update(success=True)
+            response.update(message="Ticket expired successfully")
         except ValidationError as e:
             response.update(error_message=e.detail)
         except Ticket.DoesNotExist as e:
